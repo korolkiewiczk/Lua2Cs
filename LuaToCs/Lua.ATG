@@ -1,0 +1,435 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using LuaToCs;
+using LuaToCs.Utils;
+
+COMPILER Lua
+
+public Env env;
+
+public string inputFileName;
+public string fileName;
+
+/*--------------------------------------------------------------------------------*/
+/*---------------------------- auxiliary methods ------------------------*/
+/*--------------------------------------------------------------------------------*/
+
+void Error (string s) {
+  if (errDist >= minErrDist) errors.SemErr(la.line, la.col, s);
+  errDist = 0;
+}
+
+// Return the n-th token after the current lookahead token
+Token Peek (int n) {
+  scanner.ResetPeek();
+  Token x = la;
+  while (n > 0) { x = scanner.Peek(); n--; }
+  return x;
+}
+
+//ident "("
+bool IsNotLPar()
+{
+    var notLPar=Peek(1).kind != _lpar;
+	return la.kind==_ident && notLPar;
+}
+
+/*--------------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------------*/
+enum TypeKind {simple, array, pointer, @void}
+/*----------------------------- token sets -------------------------------*/
+
+const int maxTerminals = 160;  // set size
+
+static BitArray NewSet(params int[] values) {
+  BitArray a = new BitArray(maxTerminals);
+  foreach (int x in values) a[x] = true;
+  return a;
+}
+
+static BitArray
+  unaryHead    = NewSet(_plus, _minus, _not, _tilde, _times, _inc, _dec, _and),
+  assgnOps     = NewSet(_assgn);
+  
+CHARACTERS
+
+  tab                = '\u0009'. /*  9 = tabulator */
+  eol                = '\u000a'. /* 10 = line feed */
+  cr                 = '\u000d'. /* 13 = carriage return */
+  newLine            = cr + eol. /* Line separator character (U+2028) + Paragraph separator character (U+2029) */
+
+  startLetter        = 'A' .. 'Z' + 'a' .. 'z' + '_' + '\u00aa' + '\u00b5' + '\u00ba' + '\u00c0' .. '\u00d6' + '\u00d8' .. '\u00f6' + '\u00f8' .. '\u00ff'.
+  partLetter         = '0' .. '9' + 'A' .. 'Z' + 'a' .. 'z' + '_' + '\u00a0' + '\u00aa' + '\u00b5' + '\u00ba' + '\u00c0' .. '\u00d6' + '\u00d8' .. '\u00f6' + '\u00f8' .. '\u00ff'.
+
+  digit              = "0123456789".  
+  hexDigit           = digit + "ABCDEFabcdef".
+  notDigit           = ANY - digit.
+
+  char               = ANY - "'" - '\\' - newLine.
+  verbatimStringChar = ANY - '"'.
+  regularStringChar  = ANY - '"' - '\\' - newLine.
+  notNewLine         = ANY - newLine .
+  ws                 = " " + tab + '\u000b' + '\u000c'. /* Any character with Unicode class Zs */
+
+TOKENS
+
+/*----- keyword names needed in LL(1) resolvers -----*/
+
+  ident =
+    ( startLetter
+    | '\\'
+      ( 'u' hexDigit hexDigit hexDigit hexDigit
+      | 'U' hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit
+      )
+    )
+    { partLetter
+    | '\\'
+      ( 'u' hexDigit hexDigit hexDigit hexDigit
+      | 'U' hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit
+      )
+    }.
+  /*--------------------------------------------------------------------------------*/
+  intCon =
+    ( digit {digit} | digit {digit} CONTEXT ("." notDigit)
+    | ("0x" | "0X") hexDigit {hexDigit}
+    )
+    ["U" | "u" | "L" | "l" | "UL" | "Ul" | "uL" | "ul" | "LU" | "Lu" | "lU" | "lu"].
+  /*--------------------------------------------------------------------------------*/
+  realCon =
+    "." digit {digit} 
+    [("e" | "E") ["+" | "-"] digit {digit}] 
+    ["F" | "f" | "D" | "d" | "M" | "m"]
+  | digit {digit} 
+    ( "." digit {digit} 
+      [("e" | "E" ) ["+" | "-"] digit {digit} ] 
+      ["F" | "f" | "D" | "d" | "M" | "m"]
+    | ("e" | "E") ["+" | "-"] digit {digit}
+      ["F" | "f" | "D" | "d" | "M" | "m"]
+    | "F" | "f" | "D" | "d" | "M" | "m"
+    ).
+  /*--------------------------------------------------------------------------------*/
+  stringCon =
+      "'" { char
+          | "\\\'" | "\\\"" | "\\\\" | "\\0" | "\\a" | "\\b" | "\\f" | "\\n" | "\\r" | "\\t" | "\\v"
+          | "\\x" hexDigit [hexDigit] [hexDigit] [hexDigit]
+          | "\\u" hexDigit hexDigit hexDigit hexDigit
+          | "\\U" hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit
+          } 
+      "'".
+      
+   stringCon2 =
+          "\""  { regularStringChar
+                | "\\\'" | "\\\"" | "\\\\" | "\\0" | "\\a" | "\\b" | "\\f" | "\\n" | "\\r" | "\\t" | "\\v"
+                | "\\x" hexDigit [hexDigit] [hexDigit] [hexDigit]
+                | "\\u" hexDigit hexDigit hexDigit hexDigit
+                | "\\U" hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit hexDigit
+                } 
+          "\"".
+
+  break      = "break".
+  do         = "do".
+  else       = "else".
+  elseif     = "elseif".
+  false      = "false".
+  for        = "for".
+  function   = "function".
+  if         = "if".
+  in         = "in".
+  local      = "local".
+  nil        = "nil".
+  return     = "return".
+  repeat     = "repeat".
+  true       = "true".
+  while      = "while".
+  
+
+  /*----- operators and special characters needed in LL(1) resolvers --------------*/
+  and        = "&".
+  andassgn   = "&=".
+  assgn      = "=".
+  colon      = ":".
+  comma      = ",".
+  dec        = "--".
+  divassgn   = "/=".
+  dot        = ".".
+  dblcolon   = "::".
+  eq         = "==".
+  gt         = ">".
+  gteq       = ">=".
+  inc        = "++".
+  lbrace     = "{".
+  lbrack     = "[".
+  lpar       = "(".
+  lshassgn   = "<<=".
+  lt         = "<".
+  lteq       = "<=".
+  ltlt       = "<<".
+  minus      = "-".
+  minusassgn = "-=".
+  modassgn   = "%=".
+  neq        = "!=".
+  not        = "!".
+  orassgn    = "|=".
+  plus       = "+".
+  plusassgn  = "+=".
+  question   = "?".
+  rbrace     = "}".
+  rbrack     = "]".
+  rpar       = ")".
+  scolon     = ";".
+  tilde      = "~".
+  tilde2      = "`".
+  times      = "*".
+  timesassgn = "*=".
+  xorassgn   = "^=".
+
+COMMENTS FROM "--" TO eol
+
+IGNORE eol + cr + tab
+
+PRODUCTIONS
+
+/*------------------------------------------------------------------------*/
+Lua
+(. 
+	env = new Env(inputFileName, fileName);
+.) = (. Operand st; .)
+{
+    Chunk<out st>
+}.
+
+Chunk<out Operand st> (. st=null; .)
+=
+	{ Statement<out st> [ ";" ] } [ LastStatement<out st> [ ";" ] ]
+.
+
+Block<out Operand st> (. st = null; .)
+=
+  (. env.OpenScope(); .) Chunk<out st> (. env.CloseScope(); .)
+.
+
+FuncBlock<out Operand st> (. st = null; .)
+=
+  (. env.OpenScope(); .) Chunk<out st> (. env.codeGen.EndFunc(); env.CloseScope(); .)
+.
+
+Statement<out Operand st>  (. Operand op1=null,op2=null,op3=null; Operand st1=null,st2=null; st = null; .)
+= 
+  "do" Block<out op1> "end"
+  | "while" Expression<out op1> (. env.codeGen.While(op1); .) "do" Block<out st1> "end"
+  | "repeat" (. env.codeGen.Do(); .) Block<out st1> "until" Expression<out op1> (. env.codeGen.WhileNeg(op1); .)
+  | "if" Expression<out op1> "then" (. env.codeGen.If(op1); .) Block<out st1> { "elseif" Expression<out op2> (. env.codeGen.Else(); env.codeGen.If(op2); .) "then" Block<out st2>} [ "else" (. env.codeGen.Else(); .) Block<out st2> ] "end"
+  | ("for" NameList<out op1> (("=" Expression<out op2> "," Expression<out op3> [ "," Expression<out st1> ] (. env.codeGen.For(op1, op2, op3, st1); .) "do" Block<out st2> "end") | ("in" ExprList<out op2> (. env.codeGen.ForEach(op1, op2); .) "do" Block<out st1> "end")))
+  | "function" FuncName<out op1> FuncBody<op1>
+  | "local" ( "function" Name<out op1> FuncBody<op1>
+             | NameList<out op1> [ "=" ( ExprList<out op2> (. if (env.codeGen.IsScoped) { env.codeGen.Emit(ListOfOperands.ToOperand(op1, op2, true)); env.codeGen.End(); } else { env.AddFieldWithInitializer(op1, op2); } .) | "require" ["("] ( stringCon | stringCon2) [")"] (. env.AddField(op1.ToString()); .)) ])
+  | "require" ( stringCon | stringCon2)
+  | ExprList<out op1> (. env.codeGen.Emit(op1); .) (. env.codeGen.End(); .)
+.
+
+LastStatement<out Operand st> (. st=null; .)    
+=
+"return" { ExprList<out st> } (. if (env.codeGen.IsScoped) { env.codeGen.Return(st); env.codeGen.End(); } .)
+| "break" (. env.codeGen.Break(); .) (. env.codeGen.End(); .)
+.
+ 
+FuncName<out Operand st> (. st=null; var name=""; .)
+=
+ident (. name=t.val; .) { "." ident (. name+=t.val; .) } [ ":" ident (. env.SetClassName(name); name=t.val; .) ] (. st=new Var(name); .)
+.
+
+Var<out Operand st> (. st = null; .)
+= 
+Name<out st> { "." Name<out st> }
+.
+
+Name<out Operand st> (. st = null; .)
+=
+ident (. st=new Var(t.val); .)
+.
+
+NameList<out Operand st> (. var operands=new List<Operand>(); .)
+=
+Name<out st> (. operands.Add(st); .) { "," Name<out st> (. operands.Add(st); .) } (. st = ListOfOperands.ToOperand(operands); .)
+.
+    
+ExprList<out Operand st> (. var operands=new List<Operand>(); .)
+=
+Expression<out st> (. operands.Add(st); .) { "," Expression<out st> (. operands.Add(st); .) } (. st = new ListOfOperands(operands); .)
+.
+
+FuncBody<Operand fn> (. Operand st2; var args=new FuncArguments(); .)
+=
+"(" [ ParList<out args> ] ")" (. env.codeGen.Emit(new FuncDef(fn, args)); .) FuncBlock<out st2> "end"
+.
+
+FuncBodyLambda<out Operand st> (. Operand st2; var args=new FuncArguments(); .)
+=
+"(" [ ParList<out args> ] ")" (. st = new FuncDefLambda(args); .) FuncBlock<out st2> "end"
+.
+
+ParList<out FuncArguments args> (. List<string> names = new List<string>(); .)
+=
+(ident (. names.Add(t.val); .) { "," ident (. names.Add(t.val); .) }  [ "," "..." ]
+| "..." (. names.Add("params dynamic[] args"); .) ) (. args=new FuncArguments(names); .)
+.
+
+TableConstructor<out Operand st> (. st = null; .)
+=
+"{" [ FieldList<out st> ] "}" (. if (st==null) st=new ListOfOperandsCtor(); .)
+.
+
+FieldList<out Operand st> (. Operand st1, st2; List<Operand> ops1=new List<Operand>(); List<Operand> ops2=new List<Operand>(); .) 
+=
+Field<out st1, out st2> (. ops1.Add(st1); ops2.Add(st2); .) { FieldSep Field<out st1, out st2> (. ops1.Add(st1); ops2.Add(st2); .) } [ FieldSep ]
+(. st = new ListOfOperandsCtor(ops1, ops2); .)
+.
+
+Field<out Operand st, out Operand st2> (. st = null; st2 = null; .)
+=
+"[" Expression<out st> "]" "=" Expression<out st2>
+| Expression<out st>
+.
+
+FieldSep
+=
+"," | ";"
+.
+
+//---
+
+Literal<out Operand op> (. op=null; string memberName; .)
+= 
+ClassOrIdent<out op, out memberName>
+| intCon 	(. op=env.IntFromString(t.val); .)
+| realCon 	(. op=env.RealFromString(t.val); .)
+| stringCon (. op=env.StringFromString(t.val); .)
+| stringCon2 (. op=env.StringFromString(t.val); .)
+| "true" 	(. op=env.BoolFromString(t.val); .)
+| "false" 	(. op=env.BoolFromString(t.val); .)
+| "nil"	(. op=new Var("null"); .)
+.
+
+ClassOrIdent<. out Operand op, out String name .> (. var args = new List<Operand>(); name=""; op=null; string fieldName=null; bool isSelf=false, isCall=false; .)
+=
+	((IF(IsNotLPar()) ident (. name = t.val; op=env.MemberFromString(ref name, ref isSelf); .)
+	{
+	( "." | ":") ident (. name += "." + t.val; if (!env.codeGen.IsScoped) name=t.val; .) (. op=new Var(name); if (isSelf) { fieldName = t.val; isSelf=false; } .)
+	} [ "(" [ Argument<out op> (. args.Add(op); .) { "," Argument<out op> (. args.Add(op); .) } ] ")" 
+	(. op=new Call(name, args); isCall=true; .) ] [ TableConstructor<out op> (. args.Add(op); .) ]
+	)
+	|
+	(ident (. name=t.val; .) "(" [ Argument<out op> (. args.Add(op); .) { "," Argument<out op> (. args.Add(op); .) } ] ")" 
+	(. op=new Call(name, args); isCall=true; .)))
+	(. if (fieldName!=null && !isCall) env.AddField(t.val); .).
+
+Expression<out Operand op>		(. Operand lop, rop; op=null; string oper; .)
+= OrExpr<out lop> (. op=lop; .)
+ [ IF (assgnOps[la.kind])
+    AssignmentOperator<out oper> Expression<out rop> (. op=env.AssignOperandFromOperator(oper, lop, rop, env.codeGen.IsScoped); .)
+ ]
+.
+
+OrExpr<out Operand op>		(. Operand lop, rop; op=null; string oper; .)
+= AndExpr<out lop> (. op=lop; .)
+  {("or") (. oper=t.val; .) 
+  AndExpr<out rop> (. op=env.OperandFromOperator(oper, lop, rop); lop=op; .)
+  }
+.
+AndExpr<out Operand op>		(. Operand lop, rop; op=null; string oper; .)
+= BitOrExpr<out lop> (. op=lop; .)
+  {("and") (. oper=t.val; .) 
+  BitOrExpr<out rop> (. op=env.OperandFromOperator(oper, lop, rop); lop=op; .)
+  }
+.
+
+BitOrExpr<out Operand op>		(. Operand lop, rop; op=null; string oper; .)
+= BitXorExpr<out lop> (. op=lop; .)
+  {("|") (. oper=t.val; .) 
+  BitXorExpr<out rop> (. op=env.OperandFromOperator(oper, lop, rop); lop=op; .)
+  }
+.
+
+BitXorExpr<out Operand op>		(. Operand lop, rop; op=null; string oper; .)
+= BitAndExpr<out lop> (. op=lop; .)
+  {("^") (. oper=t.val; .) 
+  BitAndExpr<out rop> (. op=env.OperandFromOperator(oper, lop, rop); lop=op; .)
+  }
+.
+
+BitAndExpr<out Operand op>		(. Operand lop, rop; op=null; string oper; .)
+= EqlExpr<out lop> (. op=lop; .)
+  {("&") (. oper=t.val; .) 
+  EqlExpr<out rop> (. op=env.OperandFromOperator(oper, lop, rop); lop=op; .)
+  }
+.
+
+EqlExpr<out Operand op>		(. Operand lop, rop; op=null; string oper; .)
+= RelExpr<out lop> (. op=lop; .)
+  {("~=" | "==") (. oper=t.val; .) 
+  RelExpr<out rop> (. op=env.OperandFromOperator(oper, lop, rop); lop=op; .)
+  }
+.
+
+RelExpr<out Operand op>		(. Operand lop, rop; op=null; string oper; .)
+= AddExpr<out lop> (. op=lop; .)
+  {("<" | ">" | "<=" | ">=") (. oper=t.val; .) 
+  AddExpr<out rop> (. op=env.OperandFromOperator(oper, lop, rop); lop=op; .)
+  }
+.
+
+AddExpr<out Operand op>		(. Operand lop, rop; op=null; string oper; .)
+= MulExpr<out lop> (. op=lop; .)
+  {( "+" | "-" | ".." ) (. oper=t.val; .) 
+  MulExpr<out rop> (. op=env.OperandFromOperator(oper, lop, rop); lop=op; .)
+  }
+.
+
+MulExpr<out Operand op>		(. Operand lop, rop; op=null; string oper; .)
+= DotExpr<out lop> (. op=lop; .)
+  {("*" | "/" | "%") (. oper=t.val; .) 
+  DotExpr<out rop> (. op=env.OperandFromOperator(oper, lop, rop); lop=op; .)
+  }
+.
+
+DotExpr<out Operand op>		(. Operand lop, rop; string oper; op=null; .)
+= Unary<out lop> (. op=lop; .)
+  {("." | ":") (. oper=t.val; .)
+  Unary<out rop> (. op=env.OperandFromOperator(oper, lop, rop); .)
+  }
+.
+
+Unary<out Operand op>  (. string oper=""; .)
+=
+  {
+    ( "-" | "not" | "#" ) (. oper=t.val; .)
+  }
+  Primary<out op> (. op=env.OperandFromOperator(oper,op); .)
+.
+
+Primary<out Operand op> (. List<Operand> args = new List<Operand>(); Operand op2=null; op=null; .)
+=
+  (Literal<out op>
+  | "(" Expression<out op> ")"
+  | Var<out op>
+  | TableConstructor<out op>
+  | "function" FuncBodyLambda<out op>)
+  {
+        "[" Expression<out op2> (. args.Add(op2); .) "]"
+  } (. if (args.Any()) op=new ArrayAccess(op, args); .)
+.
+
+AssignmentOperator<out string oper> (. oper=null; .)
+=
+  "=" (. oper=t.val; .) 
+.
+
+Argument<out Operand op>
+=
+  Expression<out op>
+.
+
+END Lua.

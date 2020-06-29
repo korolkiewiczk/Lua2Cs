@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{51859C8E-7A1A-469B-BFB9-381DC35CA456}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>LuaToCs</RootNamespace>
+    <AssemblyName>LuaToCs</AssemblyName>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="FileConverter.cs" />
+    <Compile Include="Env.cs" />
+    <Compile Include="Parser.cs" />
+    <Compile Include="ProjectConverter.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Scanner.cs" />
+    <Compile Include="Utils\ArrayAccess.cs" />
+    <Compile Include="Utils\ArrayLength.cs" />
+    <Compile Include="Utils\Constants.cs" />
+    <Compile Include="Utils\ExpOperator.cs" />
+    <Compile Include="Utils\FileGen.cs" />
+    <Compile Include="Utils\Assignment.cs" />
+    <Compile Include="Utils\Call.cs" />
+    <Compile Include="Utils\CodeGen.cs" />
+    <Compile Include="Utils\Conditional.cs" />
+    <Compile Include="Utils\DecimalLiteral.cs" />
+    <Compile Include="Utils\DotOperation.cs" />
+    <Compile Include="Utils\DoubleLiteral.cs" />
+    <Compile Include="Utils\EnumLiteral.cs" />
+    <Compile Include="Utils\FloatLiteral.cs" />
+    <Compile Include="Utils\FuncArguments.cs" />
+    <Compile Include="Utils\FuncDef.cs" />
+    <Compile Include="Utils\FuncDefLambda.cs" />
+    <Compile Include="Utils\IntLiteral.cs" />
+    <Compile Include="Utils\Invocation.cs" />
+    <Compile Include="Utils\ListOfOperands.cs" />
+    <Compile Include="Utils\ListOfOperandsCtor.cs" />
+    <Compile Include="Utils\LongLiteral.cs" />
+    <Compile Include="Utils\NameResolver.cs" />
+    <Compile Include="Utils\Operand.cs" />
+    <Compile Include="Utils\Operator.cs" />
+    <Compile Include="Utils\OverloadableOperation.cs" />
+    <Compile Include="Utils\Scope.cs" />
+    <Compile Include="Utils\StringBuilderWithIdent.cs" />
+    <Compile Include="Utils\StringLiteral.cs" />
+    <Compile Include="Utils\TypeGen.cs" />
+    <Compile Include="Utils\Var.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Lua.ATG" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>"$(ProjectDir)coco.exe" "$(ProjectDir)Lua.ATG"</PreBuildEvent>
+  </PropertyGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
