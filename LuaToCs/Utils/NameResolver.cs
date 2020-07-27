@@ -34,6 +34,9 @@ namespace LuaToCs.Utils
                     case "string":
                         newStrings.Add("LuaString");
                         break;
+                    case "base":
+                        newStrings.Add("@base");
+                        break;
                     default:
                         newStrings.Add(str);
                         break;
@@ -61,20 +64,20 @@ namespace LuaToCs.Utils
             }
         }
 
-        public static string ToPascalCase(string str)
+        public static string ToPascalCase(this string str)
         {
             System.Text.StringBuilder resultBuilder = new System.Text.StringBuilder();
 
-            foreach(char c in str)
+            foreach (char c in str)
             {
                 // Replace anything, but letters and digits, with space
-                if(!char.IsLetterOrDigit(c))
+                if (!char.IsLetterOrDigit(c))
                 {
                     resultBuilder.Append(" ");
                 }
-                else 
-                { 
-                    resultBuilder.Append(c); 
+                else
+                {
+                    resultBuilder.Append(c);
                 }
             }
 
@@ -82,11 +85,57 @@ namespace LuaToCs.Utils
 
             result = result.ToLower();
 
-            TextInfo myTI = new CultureInfo("en-US",false).TextInfo;
+            TextInfo myTI = new CultureInfo("en-US", false).TextInfo;
 
             result = myTI.ToTitleCase(result).Replace(" ", String.Empty);
 
             return result;
+        }
+        
+        public static string ToCamelCase(this string str)
+        {
+            System.Text.StringBuilder resultBuilder = new System.Text.StringBuilder();
+
+            foreach (char c in str)
+            {
+                // Replace anything, but letters and digits, with space
+                if (!char.IsLetterOrDigit(c))
+                {
+                    resultBuilder.Append(" ");
+                }
+                else
+                {
+                    resultBuilder.Append(c);
+                }
+            }
+
+            string result = resultBuilder.ToString();
+
+            result = result.ToLower();
+
+            var strings = result.Split(' ');
+            if (strings.Length == 1) return strings[0];
+
+            TextInfo myTI = new CultureInfo("en-US", false).TextInfo;
+
+            for (int i = 1; i < strings.Length; i++)
+            {
+                strings[i] = myTI.ToTitleCase(strings[i]);
+            }
+
+            return string.Join("", strings);
+        }
+
+        public static string ToPascalCase(this Operand op)
+        {
+            if (op == null) return null;
+            return ToPascalCase(op.ToString());
+        }
+        
+        public static string ToCamelCase(this Operand op)
+        {
+            if (op == null) return null;
+            return ToCamelCase(op.ToString());
         }
     }
 }

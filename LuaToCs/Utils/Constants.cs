@@ -7,5 +7,7 @@
         public const string Fields = "//$Fields$";
         public const string FieldsInit = "//$FieldsInit$";
         public const string Dependencies = "//$Dependencies$";
+        public const string InitCode = "//$InitCode$";
+        public const string ImplicitCtor = "//$ImplicitCtor$";
     }
 }

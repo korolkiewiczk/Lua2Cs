@@ -16,6 +16,10 @@ namespace LuaToCs.Utils
 
         public override string ToString()
         {
+            if (Env.Instance.HasDependency(_name))
+            {
+                return $"new {_name}({string.Join(", ", _args)})";
+            }
             return $"{_name}({string.Join(", ", _args)})";
         }
     }

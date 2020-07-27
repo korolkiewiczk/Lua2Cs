@@ -29,26 +29,17 @@
         {
             if (!_scoped)
             {
-                return $"public static dynamic {Operand} = {Value}";
+                Env.Instance.AddField(Operand.ToString());
             }
 
             var var = _local ? "var " : "";
             if (Env.Instance.ExistsVarInCurrentScope(Operand.ToString())) var = "";
             Env.Instance.AddLocalField(Operand.ToString());
-            /*if (_operand is Var)
-            {
-                var variable = (_operand as Var).GetFirstPartOfName();
-                if (!_local && !Env.Instance.ExistsVarInCurrentScope(variable) && variable == _operand.ToString())
-                {
-                    var = "var ";
-                }
-                if (!_local)
-                    Env.Instance.AddField(variable);
-                else
-                    Env.Instance.AddLocalField(variable);
-            }*/
 
-            if (_local && Value.ToString().Contains("LuaObject()") && !Operand.ToString().Contains("this.")) var = "dynamic ";
+            if (_local && Value.ToString().Contains("LuaObject()") && !Operand.ToString().Contains("this.")) 
+                var = "dynamic ";
+            if (Value.ToString() == "null")
+                var = "dynamic ";
             return $"{var}{Operand} = {Value}";
         }
     }

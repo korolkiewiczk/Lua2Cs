@@ -19,6 +19,12 @@ namespace LuaToCs.Utils
         {
             _sb.AppendLine("{");
             _sb.Ident++;
+            if (Env.Instance.isCurrentFuncCtor)
+            {
+                _sb.AppendLineNoIdentA(Constants.Dependencies);
+                _sb.AppendLineNoIdentA(Constants.InitCode);
+                Env.Instance.isCurrentFuncCtor = false;
+            }
         }
 
         public void CloseScope()
@@ -40,11 +46,6 @@ namespace LuaToCs.Utils
         public void End()
         {
             _sb.AppendLineNoIdent(";");
-        }
-
-        public void Switch(Operand op1)
-        {
-            _sb.AppendLine($"switch ({op1})");
         }
 
         public void While(Operand op1)
@@ -70,11 +71,6 @@ namespace LuaToCs.Utils
         public void Break()
         {
             _sb.Append("break");
-        }
-
-        public void WriteLine(Operand[] op)
-        {
-            _sb.AppendLine($"Console.WriteLine({string.Join<Operand>(",", op)})");
         }
 
         public void For(Operand indexer, Operand startIndex, Operand max, Operand step)
@@ -127,14 +123,14 @@ namespace LuaToCs.Utils
 
         public void EndFunc()
         {
+            if (Env.Instance.isLambda)
+            {
+                Env.Instance.isLambda = false;
+                return;
+            }
             if (!Env.Instance.hasFuncReturnedValue && !string.IsNullOrEmpty(Env.Instance.currentFuncSignature))
             {
-                _sb.Replace(Env.Instance.currentFuncSignature, $"public void {Env.Instance.currentFuncName}");
-            }
-
-            if (Env.Instance.isCurrentFuncCtor)
-            {
-                _sb.AppendLine(Constants.Dependencies);
+                _sb.Replace(Env.Instance.currentFuncSignature, $"public void {Env.Instance.currentFuncName}(");
             }
 
             Env.Instance.currentFuncArgs.Clear();
@@ -145,7 +141,14 @@ namespace LuaToCs.Utils
 
         public void Emit(Operand operand)
         {
-            _sb.Append(operand);
+            if (operand is FuncDef)
+            {
+                _sb.AppendA(operand);
+            }
+            else
+            {
+                _sb.Append(operand);
+            }
         }
     }
 }

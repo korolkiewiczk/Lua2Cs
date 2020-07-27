@@ -14,12 +14,13 @@ namespace LuaToCs.Utils
             {
                 name = new Var(Env.Instance.className);
                 _isCtor = true;
+                Env.Instance.hasBeenCtor = _isCtor;
             }
 
             _name = name;
             _args = args;
 
-            Env.Instance.currentFuncSignature = $"public dynamic {_name}";
+            Env.Instance.currentFuncSignature = $"public dynamic {_name}(";
             Env.Instance.currentFuncName = _name.ToString();
             Env.Instance.hasFuncReturnedValue = false;
             Env.Instance.currentFuncArgs.AddRange(args.Names);

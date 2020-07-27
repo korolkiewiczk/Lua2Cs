@@ -213,7 +213,7 @@ Block<out Operand st> (. st = null; .)
 
 FuncBlock<out Operand st> (. st = null; .)
 =
-  (. env.OpenScope(); .) Chunk<out st> (. env.codeGen.EndFunc(); env.CloseScope(); .)
+  (. env.OpenScope(); .) Chunk<out st> (. env.CloseScope(); env.codeGen.EndFunc(); .)
 .
 
 Statement<out Operand st>  (. Operand op1=null,op2=null,op3=null; Operand st1=null,st2=null; st = null; .)
@@ -225,8 +225,8 @@ Statement<out Operand st>  (. Operand op1=null,op2=null,op3=null; Operand st1=nu
   | ("for" NameList<out op1> (("=" Expression<out op2> "," Expression<out op3> [ "," Expression<out st1> ] (. env.codeGen.For(op1, op2, op3, st1); .) "do" Block<out st2> "end") | ("in" ExprList<out op2> (. env.codeGen.ForEach(op1, op2); .) "do" Block<out st1> "end")))
   | "function" FuncName<out op1> FuncBody<op1>
   | "local" ( "function" Name<out op1> FuncBody<op1>
-             | NameList<out op1> [ "=" ( ExprList<out op2> (. if (env.codeGen.IsScoped) { env.codeGen.Emit(ListOfOperands.ToOperand(op1, op2, true)); env.codeGen.End(); } else { env.AddFieldWithInitializer(op1, op2); } .) | "require" ["("] ( stringCon | stringCon2) [")"] (. env.AddField(op1.ToString()); .)) ])
-  | "require" ( stringCon | stringCon2)
+             | NameList<out op1> [ "=" ( ExprList<out op2> (. if (env.codeGen.IsScoped) { env.codeGen.Emit(ListOfOperands.ToOperand(op1, op2, true)); env.codeGen.End(); } else { env.AddFieldWithInitializer(op1, op2); } .) | "require" ["("] ( stringCon | stringCon2) (. env.AddDependency(op1.ToString(), t.val); .) [")"] (. env.AddField(op1.ToString()); .)) ])
+  | "require" ( stringCon | stringCon2) (. env.AddDependency(t.val); .)
   | ExprList<out op1> (. env.codeGen.Emit(op1); .) (. env.codeGen.End(); .)
 .
 
@@ -304,8 +304,8 @@ FieldSep
 Literal<out Operand op> (. op=null; string memberName; .)
 = 
 ClassOrIdent<out op, out memberName>
-| intCon 	(. op=env.IntFromString(t.val); .)
-| realCon 	(. op=env.RealFromString(t.val); .)
+| intCon 	(. op=env.NumberFromString(t.val); .)
+| realCon 	(. op=env.NumberFromString(t.val); .)
 | stringCon (. op=env.StringFromString(t.val); .)
 | stringCon2 (. op=env.StringFromString(t.val); .)
 | "true" 	(. op=env.BoolFromString(t.val); .)

@@ -64,11 +64,11 @@
     <Compile Include="Utils\FuncDef.cs" />
     <Compile Include="Utils\FuncDefLambda.cs" />
     <Compile Include="Utils\IntLiteral.cs" />
-    <Compile Include="Utils\Invocation.cs" />
     <Compile Include="Utils\ListOfOperands.cs" />
     <Compile Include="Utils\ListOfOperandsCtor.cs" />
     <Compile Include="Utils\LongLiteral.cs" />
     <Compile Include="Utils\NameResolver.cs" />
+    <Compile Include="Utils\NumberLiteral.cs" />
     <Compile Include="Utils\Operand.cs" />
     <Compile Include="Utils\Operator.cs" />
     <Compile Include="Utils\OverloadableOperation.cs" />

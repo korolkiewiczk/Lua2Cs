@@ -9,12 +9,7 @@ namespace l2cs
     {
         public static void Main(string[] args)
         {
-            /*var dir = "C:\\Projects\\external\\DeepHoldem\\Source\\";
-            FileConverter c = new FileConverter(dir + "Tree\\tree_visualiser.lua", "out/out.txt");
-            c.Convert();
-            Console.WriteLine(c.CompilationErrorMessage);*/
-
-            ProjectConverter projectConverter = new ProjectConverter(args[0], "out");
+            ProjectConverter projectConverter = new ProjectConverter(args[0], args.Length > 1 ? args[1] : "out");
             projectConverter.Convert();
         }
     }

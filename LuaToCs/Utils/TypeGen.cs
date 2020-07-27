@@ -11,11 +11,12 @@ namespace LuaToCs.Utils
         public TypeGen(StringBuilderWithIdent sb)
         {
             _sb = sb;
-            _sb.AppendLine($"public class {Constants.ClassName} : LuaObject");
-            _sb.AppendLine("{");
+            _sb.AppendLineA($"public class {Constants.ClassName} : LuaObject");
+            _sb.AppendLineA("{");
             _sb.Ident++;
-            _sb.AppendLineNoIdent(Constants.Fields);
-            _sb.AppendLineNoIdent(Constants.FieldsInit);
+            _sb.AppendLineNoIdentA(Constants.Fields);
+            _sb.AppendLineNoIdentA(Constants.FieldsInit);
+            _sb.AppendLineNoIdentA(Constants.ImplicitCtor);
 
             _fields = new HashSet<string>();
             _fieldsInit = new Dictionary<string, Operand>();
@@ -29,11 +30,37 @@ namespace LuaToCs.Utils
         public void End(string className)
         {
             _sb.Ident--;
-            _sb.AppendLine("}");
+            _sb.AppendLineA("}");
             _sb.Replace(Constants.ClassName, className);
             _sb.Replace(Constants.Fields, GetFieldsList());
             _fieldsInit.Remove(className);
+            if (!Env.Instance.hasBeenCtor)
+            {
+                _sb.Replace(Constants.ImplicitCtor, 
+$@"    public {className}()
+    {{
+    {Constants.Dependencies}
+    {Constants.InitCode}
+    }}");
+            }
+            else
+            {
+                _sb.Replace(Constants.ImplicitCtor, string.Empty);
+            }
             _sb.Replace(Constants.FieldsInit, GetFieldsListInit());
+            _sb.Replace(Constants.Dependencies, GetDependencyInit());
+            _sb.ReplaceB(Constants.InitCode);
+        }
+
+        private string GetDependencyInit()
+        {
+            var sb = new StringBuilderWithIdent() {Ident = 2};
+            foreach (var dependencyInitializer in Env.Instance.GetDependencyInitializers())
+            {
+                sb.AppendLineA($"this.{dependencyInitializer.Key} = new {dependencyInitializer.Value}();");
+            }
+
+            return sb.ToString();
         }
 
         private string GetFieldsList()
@@ -41,7 +68,7 @@ namespace LuaToCs.Utils
             StringBuilderWithIdent sb = new StringBuilderWithIdent {Ident = 1};
             foreach (var field in _fields)
             {
-                sb.AppendLine($"private dynamic {field};");
+                sb.AppendLineA($"public dynamic {field};");
             }
 
             return sb.ToString();
@@ -52,7 +79,7 @@ namespace LuaToCs.Utils
             StringBuilderWithIdent sb = new StringBuilderWithIdent {Ident = 1};
             foreach (var field in _fieldsInit)
             {
-                sb.AppendLine($"private dynamic {field.Key} = {field.Value};");
+                sb.AppendLineA($"public dynamic {field.Key} = {field.Value};");
             }
 
             return sb.ToString();

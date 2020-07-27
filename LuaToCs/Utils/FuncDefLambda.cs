@@ -11,11 +11,12 @@ namespace LuaToCs.Utils
         {
             _args = args;
 
-            Env.Instance.currentFuncSignature = "";
+            Env.Instance.isLambda = true;
+            /*Env.Instance.currentFuncSignature = "";
             Env.Instance.currentFuncName = "";
             Env.Instance.hasFuncReturnedValue = false;
             Env.Instance.currentFuncArgs.AddRange(args.Names);
-            Env.Instance.isCurrentFuncCtor = false;
+            Env.Instance.isCurrentFuncCtor = false;*/
         }
 
         public override string ToString()

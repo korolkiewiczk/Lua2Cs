@@ -11,6 +11,8 @@ namespace LuaToCs
 
         private string _fileName;
         private List<Scope> _scopes;
+        private HashSet<string> _dependencies;
+        private Dictionary<string, string> _dependenciesDict;
 
         public FileGen fileGen;
         public TypeGen typeGen;
@@ -21,8 +23,12 @@ namespace LuaToCs
         public string currentFuncSignature;
         public string currentFuncName;
         public bool isCurrentFuncCtor;
+        public bool hasBeenCtor;
         public bool hasFuncReturnedValue = false;
         public readonly List<string> currentFuncArgs = new List<string>();
+        public bool isLambda;
+
+        public bool IsInFunc => currentFuncName != null;
 
         public void OpenScope()
         {
@@ -42,29 +48,23 @@ namespace LuaToCs
             Instance = this;
         }
 
-        private void SectionDefs()
+        public void Init(string inputFileName, string fileName)
         {
+            _fileName = fileName;
+            className = NameResolver.ToPascalCase(Path.GetFileNameWithoutExtension(inputFileName));
             _scopes = new List<Scope>
             {
                 new Scope()
             };
 
+            _dependencies = new HashSet<string>();
+            _dependenciesDict = new Dictionary<string, string>();
+
             fileGen = new FileGen(_fileName);
 
             typeGen = fileGen.Class();
-        }
-
-        private void SectionMain()
-        {
+            
             codeGen = typeGen.GetCodeGen();
-        }
-
-        public void Init(string inputFileName, string fileName)
-        {
-            _fileName = fileName;
-            className = NameResolver.ToPascalCase(Path.GetFileNameWithoutExtension(inputFileName));
-            SectionDefs();
-            SectionMain();
         }
 
         public void EndClass()
@@ -92,7 +92,7 @@ namespace LuaToCs
         {
             typeGen.AddField(name);
         }
-        
+
         public void AddFieldWithInitializer(Operand op1, Operand op2)
         {
             typeGen.AddFieldWithInitializer(op1.ToString(), op2);
@@ -105,7 +105,7 @@ namespace LuaToCs
                 className = name;
             }
         }
-        
+
         public void AddLocalField(string name)
         {
             _scopes.Last().Vars[name] = new Operand();
@@ -117,9 +117,43 @@ namespace LuaToCs
             return _scopes.Last().Vars.ContainsKey(name) || typeGen.HasField(name) || currentFuncArgs.Contains(name);
         }
 
+        public void AddDependency(string dependency)
+        {
+            var name = CreateDependencyName(dependency);
+            _dependencies.Add(name);
+        }
+
+        private static string CreateDependencyName(string dependency)
+        {
+            var strings = dependency.Split('.');
+            var name = NameResolver.ToPascalCase(strings.Last());
+            return name;
+        }
+
+        public void AddDependency(string localName, string dependency)
+        {
+            var name = CreateDependencyName(dependency);
+            _dependenciesDict.Add(localName, name);
+        }
+
+        public bool HasDependency(string dependency)
+        {
+            return _dependencies.Contains(dependency);
+        }
+
+        public List<KeyValuePair<string, string>> GetDependencyInitializers()
+        {
+            return _dependenciesDict.ToList();
+        }
+        
         public Operand IntFromString(string str)
         {
             return long.Parse(str);
+        }
+        
+        public Operand NumberFromString(string str)
+        {
+            return new NumberLiteral(str);
         }
 
         public Operand RealFromString(string str)
@@ -130,11 +164,6 @@ namespace LuaToCs
                 return decimal.Parse(str.Substring(0, str.Length - 1),
                     System.Globalization.CultureInfo.InvariantCulture);
             return double.Parse(str, System.Globalization.CultureInfo.InvariantCulture);
-        }
-
-        public Operand CharFromString(string str)
-        {
-            return char.Parse(str.Substring(1, str.Length - 2));
         }
 
         public Operand StringFromString(string str)

@@ -25,8 +25,10 @@ namespace LuaToCs
                 var outputDir = Path.Combine(_outPath, relativeDir);
                 var outputFile = Path.Combine(outputDir,
                     NameResolver.ToPascalCase(Path.GetFileNameWithoutExtension(file)) + ".cs");
+                
                 Directory.CreateDirectory(outputDir);
                 Console.WriteLine(outputFile);
+                
                 var fileConverter = new FileConverter(file, outputFile);
                 fileConverter.Convert();
                 if (!string.IsNullOrEmpty(fileConverter.CompilationErrorMessage))

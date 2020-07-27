@@ -305,6 +305,7 @@ static BitArray
 						} else if (la.kind == 5) {
 							Get();
 						} else SynErr(76);
+						env.AddDependency(op1.ToString(), t.val); 
 						if (la.kind == 52) {
 							Get();
 						}
@@ -319,6 +320,7 @@ static BitArray
 			} else if (la.kind == 5) {
 				Get();
 			} else SynErr(79);
+			env.AddDependency(t.val); 
 		} else if (StartOf(3)) {
 			ExprList(out op1);
 			env.codeGen.Emit(op1); 
@@ -352,7 +354,7 @@ static BitArray
 		st = null; 
 		env.OpenScope(); 
 		Chunk(out st);
-		env.codeGen.EndFunc(); env.CloseScope(); 
+		env.CloseScope(); env.codeGen.EndFunc(); 
 	}
 
 	void Expression(out Operand op) {
@@ -522,12 +524,12 @@ static BitArray
 		}
 		case 2: {
 			Get();
-			op=env.IntFromString(t.val); 
+			op=env.NumberFromString(t.val); 
 			break;
 		}
 		case 3: {
 			Get();
-			op=env.RealFromString(t.val); 
+			op=env.NumberFromString(t.val); 
 			break;
 		}
 		case 4: {
